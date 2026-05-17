@@ -58,6 +58,7 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
 - Commit `.env.example`, but do not commit `.env`.
 - Store real passwords and `SUPERSET_SECRET_KEY` only in Coolify environment variables.
 - Keep the repository private if you do not want your deployment topology public.
+- Keep `.gitattributes` committed. It prevents Windows CRLF line endings from breaking shell scripts inside Linux containers.
 
 ## Important Production Notes
 

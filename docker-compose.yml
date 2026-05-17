@@ -73,16 +73,6 @@ services:
       - "8088"
     volumes:
       - superset_home:/app/superset_home
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8088/health', timeout=10)\"",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
 
   superset-worker:
     <<: *superset-image
