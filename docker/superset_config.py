@@ -1,5 +1,5 @@
 import os
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import quote, urlparse
 
 from flask_caching.backends.rediscache import RedisCache
 
@@ -12,16 +12,16 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 
 def build_postgres_uri() -> str:
-    user = quote_plus(os.environ["POSTGRES_USER"])
-    password = quote_plus(os.environ["POSTGRES_PASSWORD"])
+    user = quote(os.environ["POSTGRES_USER"], safe="")
+    password = quote(os.environ["POSTGRES_PASSWORD"], safe="")
     host = os.getenv("POSTGRES_HOST", "db")
     port = os.getenv("POSTGRES_PORT", "5432")
-    database = quote_plus(os.getenv("POSTGRES_DB", "superset"))
+    database = quote(os.getenv("POSTGRES_DB", "superset"), safe="")
     return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}"
 
 
 SECRET_KEY = os.environ["SUPERSET_SECRET_KEY"]
-SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI") or build_postgres_uri()
+SQLALCHEMY_DATABASE_URI = os.getenv("SUPERSET_SQLALCHEMY_DATABASE_URI") or build_postgres_uri()
 SQLALCHEMY_ENGINE_OPTIONS = {
     "pool_pre_ping": True,
     "pool_recycle": 300,
