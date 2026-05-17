@@ -1,0 +1,144 @@
+x-superset-image: &superset-image
+  image: superset-coolify:${SUPERSET_VERSION:-latest}
+  build:
+    context: .
+    args:
+      SUPERSET_VERSION: ${SUPERSET_VERSION:-latest}
+      SUPERSET_PIP_PACKAGES: ${SUPERSET_PIP_PACKAGES:-psycopg2-binary redis gevent openpyxl}
+
+x-superset-env: &superset-env
+  SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+  SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:?Set SUPERSET_SECRET_KEY in Coolify. Generate it with openssl rand -base64 42.}
+  ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in Coolify.}
+  ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME:-Superset}
+  ADMIN_LAST_NAME: ${ADMIN_LAST_NAME:-Admin}
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+  POSTGRES_DB: ${POSTGRES_DB:-superset}
+  POSTGRES_USER: ${POSTGRES_USER:-superset}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Coolify.}
+  POSTGRES_HOST: db
+  POSTGRES_PORT: "5432"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  ENABLE_PROXY_FIX: ${ENABLE_PROXY_FIX:-true}
+  PREFERRED_URL_SCHEME: ${PREFERRED_URL_SCHEME:-https}
+  SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+  SUPERSET_LOAD_EXAMPLES: ${SUPERSET_LOAD_EXAMPLES:-no}
+  SUPERSET_WEBSERVER_WORKERS: ${SUPERSET_WEBSERVER_WORKERS:-2}
+  SUPERSET_WEBSERVER_WORKER_CLASS: ${SUPERSET_WEBSERVER_WORKER_CLASS:-gevent}
+  SUPERSET_WEBSERVER_THREADS: ${SUPERSET_WEBSERVER_THREADS:-20}
+  SUPERSET_WEBSERVER_TIMEOUT: ${SUPERSET_WEBSERVER_TIMEOUT:-120}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-superset}
+      POSTGRES_USER: ${POSTGRES_USER:-superset}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Coolify.}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  superset-init:
+    <<: *superset-image
+    restart: unless-stopped
+    environment:
+      <<: *superset-env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: /app/docker/init-superset.sh
+    volumes:
+      - superset_home:/app/superset_home
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/superset-init-complete"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  superset:
+    <<: *superset-image
+    restart: unless-stopped
+    environment:
+      <<: *superset-env
+    depends_on:
+      superset-init:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: /app/docker/run-server.sh
+    expose:
+      - "8088"
+    volumes:
+      - superset_home:/app/superset_home
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8088/health', timeout=10)\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  superset-worker:
+    <<: *superset-image
+    restart: unless-stopped
+    environment:
+      <<: *superset-env
+    depends_on:
+      superset-init:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: /app/docker/run-worker.sh
+    volumes:
+      - superset_home:/app/superset_home
+
+  superset-worker-beat:
+    <<: *superset-image
+    restart: unless-stopped
+    environment:
+      <<: *superset-env
+    depends_on:
+      superset-init:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: /app/docker/run-worker-beat.sh
+    volumes:
+      - superset_home:/app/superset_home
+
+volumes:
+  postgres_data:
+  redis_data:
+  superset_home:
