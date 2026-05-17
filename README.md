@@ -4,7 +4,6 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
 
 ## What It Runs
 
-- `secrets`: first-start secret generator for Superset, Postgres, and the initial admin user
 - `superset`: the web app on container port `8088`; it also runs idempotent migrations, admin user creation, and role sync before starting
 - `superset-worker`: Celery worker for background tasks
 - `superset-worker-beat`: Celery scheduler
@@ -28,13 +27,15 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
    ADMIN_EMAIL=you@example.com
    SUPERSET_VERSION=latest
    POSTGRES_VERSION=16-alpine
-   SECRETS_VERSION=latest
    SUPERSET_PIP_PACKAGES=psycopg2-binary redis gevent openpyxl
+   SUPERSET_SECRET_KEY=be2206fbc1e26b61c76281d6486170eb4939610393ee38253cc626ffe1c7fa660798129ef4703c9447f73d153b4ea343
+   POSTGRES_PASSWORD=c18f29fab54bca03c6336522cb632970c86dcf531aef7ce19862e26837f777d111e48db4dcdede0015e5f73c5786edd8
+   ADMIN_PASSWORD=3e18d498f4992148f7bb92ad13b80b7918404db24b99e23923ce545de64cb9ec2485471a45f750d2a00861a857681222
    POSTGRES_SYNC_PASSWORD=true
    SUPERSET_LOAD_EXAMPLES=no
    ```
 
-   `SUPERSET_SECRET_KEY`, `POSTGRES_PASSWORD`, and `ADMIN_PASSWORD` are generated automatically on first deploy and stored in the `superset_secrets` volume.
+   `SUPERSET_SECRET_KEY`, `POSTGRES_PASSWORD`, and `ADMIN_PASSWORD` already have generated defaults in `docker-compose.yml`, so you do not need to set them in Coolify unless you want to override them.
    Add any data warehouse drivers you need to `SUPERSET_PIP_PACKAGES`, for example `pymssql`, `trino`, `sqlalchemy-bigquery`, or `clickhouse-connect`.
    Leave `SUPERSET_SQLALCHEMY_DATABASE_URI` unset unless you intentionally want to use an external metadata database.
 
@@ -49,13 +50,12 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
    The `:8088` tells Coolify which container port to proxy to. Visitors still use normal HTTPS at `https://superset.example.com`.
 
 6. Deploy.
-7. Open the `secrets` service logs and copy the generated initial admin password.
-8. Log in with `ADMIN_USERNAME` and the generated password.
+7. Log in with `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
 
 ## GitHub Safety
 
 - Commit `.env.example`, but do not commit `.env`.
-- Generated passwords and `SUPERSET_SECRET_KEY` are stored in the Docker volume named `superset_secrets`.
+- Generated default passwords and `SUPERSET_SECRET_KEY` are committed in `docker-compose.yml` and `.env.example` for private-repo convenience.
 - Keep the repository private if you do not want your deployment topology public.
 - Keep `.gitattributes` committed. It prevents Windows CRLF line endings from breaking shell scripts inside Linux containers.
 
@@ -64,11 +64,11 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
 - Keep `SUPERSET_SECRET_KEY` stable after the first deploy. Changing it without following Superset's key rotation process can break encrypted metadata such as database credentials.
 - Keep `POSTGRES_PASSWORD` stable after the first deploy when possible. This deployment includes a small Postgres wrapper that syncs the existing `superset` role password to the current Coolify `POSTGRES_PASSWORD` on container startup, which recovers from common first-deploy password mismatches.
 - Superset builds its metadata DB connection from `POSTGRES_*` variables. Do not set `SQLALCHEMY_DATABASE_URI` in Coolify for this deployment; use `SUPERSET_SQLALCHEMY_DATABASE_URI` only if you intentionally manage an external metadata database.
-- Back up the `superset_secrets` volume. It contains the generated Superset secret key and database password.
 - The official Superset production guidance expects you to extend the `lean` image and install your own database drivers. This Dockerfile installs the PostgreSQL metadata driver plus Redis/Gunicorn helpers by default.
 - Back up the `postgres_data` Docker volume. Superset dashboards, charts, users, and database connection metadata live in PostgreSQL.
 - Do not expose the `db` or `redis` services publicly. This compose file intentionally uses `expose` only for Superset and no host port mappings.
 - If you use HTTP instead of HTTPS for testing, set `SESSION_COOKIE_SECURE=false` and `PREFERRED_URL_SCHEME=http`.
+- If Coolify still shows a `secrets` service, it is deploying an older compose file. Push the latest commit, click **Reload Compose File**, then redeploy with **Force rebuild**.
 
 ## Fix Postgres Password Mismatch
 

@@ -1,13 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-password="${POSTGRES_PASSWORD:-}"
-
-if [ -z "$password" ] && [ -n "${POSTGRES_PASSWORD_FILE:-}" ]; then
-  password="$(cat "$POSTGRES_PASSWORD_FILE")"
-fi
-
-export PGPASSWORD="$password"
+export PGPASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
 
 psql \
   -h 127.0.0.1 \

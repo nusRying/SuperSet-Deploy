@@ -1,26 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-load_secret() {
-  local env_name="$1"
-  local file_name="${env_name}_FILE"
-  local value="${!env_name:-}"
-  local file_path="${!file_name:-}"
-
-  if [[ -z "${value}" && -n "${file_path}" ]]; then
-    until [[ -f "${file_path}" ]]; do
-      echo "Waiting for ${file_path}..."
-      sleep 2
-    done
-    export "${env_name}=$(<"${file_path}")"
-  fi
-
-  : "${!env_name:?${env_name} is required}"
-}
-
-load_secret SUPERSET_SECRET_KEY
-load_secret POSTGRES_PASSWORD
-load_secret ADMIN_PASSWORD
+: "${SUPERSET_SECRET_KEY:?SUPERSET_SECRET_KEY is required}"
+: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
+: "${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}"
 
 echo "Waiting for Superset metadata database..."
 python - <<'PY'

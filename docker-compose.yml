@@ -14,26 +14,17 @@ x-postgres-image: &postgres-image
     args:
       POSTGRES_VERSION: ${POSTGRES_VERSION:-16-alpine}
 
-x-secrets-image: &secrets-image
-  image: superset-secrets:${SECRETS_VERSION:-latest}
-  build:
-    context: .
-    dockerfile: docker/secrets/Dockerfile
-
 x-superset-env: &superset-env
   SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
-  SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-}
-  SUPERSET_SECRET_KEY_FILE: /run/superset-secrets/superset_secret_key
+  SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-be2206fbc1e26b61c76281d6486170eb4939610393ee38253cc626ffe1c7fa660798129ef4703c9447f73d153b4ea343}
   ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-  ADMIN_PASSWORD_FILE: /run/superset-secrets/admin_password
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-3e18d498f4992148f7bb92ad13b80b7918404db24b99e23923ce545de64cb9ec2485471a45f750d2a00861a857681222}
   ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME:-Superset}
   ADMIN_LAST_NAME: ${ADMIN_LAST_NAME:-Admin}
   ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
   POSTGRES_DB: ${POSTGRES_DB:-superset}
   POSTGRES_USER: ${POSTGRES_USER:-superset}
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
-  POSTGRES_PASSWORD_FILE: /run/superset-secrets/postgres_password
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-c18f29fab54bca03c6336522cb632970c86dcf531aef7ce19862e26837f777d111e48db4dcdede0015e5f73c5786edd8}
   POSTGRES_HOST: db
   POSTGRES_PORT: "5432"
   REDIS_HOST: redis
@@ -48,37 +39,21 @@ x-superset-env: &superset-env
   SUPERSET_WEBSERVER_TIMEOUT: ${SUPERSET_WEBSERVER_TIMEOUT:-120}
 
 services:
-  secrets:
-    <<: *secrets-image
-    restart: unless-stopped
-    volumes:
-      - superset_secrets:/run/superset-secrets
-    healthcheck:
-      test: ["CMD-SHELL", "test -f /run/superset-secrets/.ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   db:
     <<: *postgres-image
     restart: unless-stopped
-    depends_on:
-      secrets:
-        condition: service_healthy
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-superset}
       POSTGRES_USER: ${POSTGRES_USER:-superset}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
-      POSTGRES_PASSWORD_FILE: /run/superset-secrets/postgres_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-c18f29fab54bca03c6336522cb632970c86dcf531aef7ce19862e26837f777d111e48db4dcdede0015e5f73c5786edd8}
       POSTGRES_SYNC_PASSWORD: ${POSTGRES_SYNC_PASSWORD:-true}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - superset_secrets:/run/superset-secrets:ro
     healthcheck:
-      test: ["CMD-SHELL", "/usr/local/bin/postgres-healthcheck.sh"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 30
 
   redis:
     image: redis:7-alpine
@@ -98,8 +73,6 @@ services:
     environment:
       <<: *superset-env
     depends_on:
-      secrets:
-        condition: service_healthy
       db:
         condition: service_healthy
       redis:
@@ -109,7 +82,6 @@ services:
       - "8088"
     volumes:
       - superset_home:/app/superset_home
-      - superset_secrets:/run/superset-secrets:ro
 
   superset-worker:
     <<: *superset-image
@@ -117,8 +89,6 @@ services:
     environment:
       <<: *superset-env
     depends_on:
-      secrets:
-        condition: service_healthy
       db:
         condition: service_healthy
       redis:
@@ -126,7 +96,6 @@ services:
     command: /app/docker/run-worker.sh
     volumes:
       - superset_home:/app/superset_home
-      - superset_secrets:/run/superset-secrets:ro
 
   superset-worker-beat:
     <<: *superset-image
@@ -134,8 +103,6 @@ services:
     environment:
       <<: *superset-env
     depends_on:
-      secrets:
-        condition: service_healthy
       db:
         condition: service_healthy
       redis:
@@ -143,10 +110,8 @@ services:
     command: /app/docker/run-worker-beat.sh
     volumes:
       - superset_home:/app/superset_home
-      - superset_secrets:/run/superset-secrets:ro
 
 volumes:
   postgres_data:
   redis_data:
   superset_home:
-  superset_secrets:
