@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a deployment or configuration bug.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What failed?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste the relevant Coolify or container logs.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: service
+    attributes:
+      label: Service
+      description: Which service failed? Example: superset, db, redis, superset-worker.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: List custom environment variables, domain format, and Coolify build pack.
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you tried
+      description: Include whether you used Reload Compose File and Force rebuild.

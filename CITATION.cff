@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+title: Apache Superset Coolify Docker Compose
+message: If this deployment template helps your work, please cite the repository.
+type: software
+authors:
+  - name: nusRying
+repository-code: https://github.com/nusRying/SuperSet-Deploy
+license: MIT
+keywords:
+  - apache-superset
+  - coolify
+  - docker-compose
+  - business-intelligence
+  - self-hosted

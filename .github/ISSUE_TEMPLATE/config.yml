@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Apache Superset Documentation
+    url: https://superset.apache.org/docs/intro
+    about: Use the official Superset docs for product behavior and feature questions.
+  - name: Coolify Documentation
+    url: https://coolify.io/docs
+    about: Use the official Coolify docs for platform-specific deployment behavior.

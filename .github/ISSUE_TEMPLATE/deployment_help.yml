@@ -1,0 +1,28 @@
+name: Deployment help
+description: Ask for help deploying this template on Coolify.
+title: "[Help]: "
+labels:
+  - deployment
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What are you trying to deploy?
+    validations:
+      required: true
+  - type: input
+    id: domain
+    attributes:
+      label: Domain format
+      description: Example: https://superset.example.com:8088
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      render: text
+  - type: textarea
+    id: config
+    attributes:
+      label: Custom configuration
+      description: List non-secret custom environment variables or driver packages.
