@@ -4,6 +4,19 @@ from urllib.parse import quote, urlparse
 from flask_caching.backends.rediscache import RedisCache
 
 
+def env_or_file(name: str, default: str | None = None) -> str:
+    value = os.getenv(name)
+    if value:
+        return value
+    file_path = os.getenv(f"{name}_FILE")
+    if file_path and os.path.exists(file_path):
+        with open(file_path, encoding="utf-8") as file:
+            return file.read().strip()
+    if default is not None:
+        return default
+    raise RuntimeError(f"{name} or {name}_FILE is required")
+
+
 def env_bool(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
     if value is None:
@@ -12,15 +25,15 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 
 def build_postgres_uri() -> str:
-    user = quote(os.environ["POSTGRES_USER"], safe="")
-    password = quote(os.environ["POSTGRES_PASSWORD"], safe="")
+    user = quote(env_or_file("POSTGRES_USER", "superset"), safe="")
+    password = quote(env_or_file("POSTGRES_PASSWORD"), safe="")
     host = os.getenv("POSTGRES_HOST", "db")
     port = os.getenv("POSTGRES_PORT", "5432")
     database = quote(os.getenv("POSTGRES_DB", "superset"), safe="")
     return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}"
 
 
-SECRET_KEY = os.environ["SUPERSET_SECRET_KEY"]
+SECRET_KEY = env_or_file("SUPERSET_SECRET_KEY")
 SQLALCHEMY_DATABASE_URI = os.getenv("SUPERSET_SQLALCHEMY_DATABASE_URI") or build_postgres_uri()
 SQLALCHEMY_ENGINE_OPTIONS = {
     "pool_pre_ping": True,

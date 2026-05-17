@@ -4,6 +4,7 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
 
 ## What It Runs
 
+- `secrets`: first-start secret generator for Superset, Postgres, and the initial admin user
 - `superset`: the web app on container port `8088`; it also runs idempotent migrations, admin user creation, and role sync before starting
 - `superset-worker`: Celery worker for background tasks
 - `superset-worker-beat`: Celery scheduler
@@ -20,30 +21,24 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
    docker-compose.yml
    ```
 
-4. Set these required environment variables in Coolify, not in GitHub:
-
-   ```env
-   SUPERSET_SECRET_KEY=<output of: openssl rand -base64 42>
-   POSTGRES_PASSWORD=<strong database password>
-   ADMIN_PASSWORD=<strong initial admin password>
-   ```
-
-5. Optionally set:
+4. Optionally set:
 
    ```env
    ADMIN_USERNAME=admin
    ADMIN_EMAIL=you@example.com
    SUPERSET_VERSION=latest
    POSTGRES_VERSION=16-alpine
+   SECRETS_VERSION=latest
    SUPERSET_PIP_PACKAGES=psycopg2-binary redis gevent openpyxl
    POSTGRES_SYNC_PASSWORD=true
    SUPERSET_LOAD_EXAMPLES=no
    ```
 
+   `SUPERSET_SECRET_KEY`, `POSTGRES_PASSWORD`, and `ADMIN_PASSWORD` are generated automatically on first deploy and stored in the `superset_secrets` volume.
    Add any data warehouse drivers you need to `SUPERSET_PIP_PACKAGES`, for example `pymssql`, `trino`, `sqlalchemy-bigquery`, or `clickhouse-connect`.
    Leave `SUPERSET_SQLALCHEMY_DATABASE_URI` unset unless you intentionally want to use an external metadata database.
 
-6. Assign your domain to the `superset` service, using container port `8088`.
+5. Assign your domain to the `superset` service, using container port `8088`.
 
    Example:
 
@@ -53,13 +48,14 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
 
    The `:8088` tells Coolify which container port to proxy to. Visitors still use normal HTTPS at `https://superset.example.com`.
 
-7. Deploy.
-8. Log in with `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
+6. Deploy.
+7. Open the `secrets` service logs and copy the generated initial admin password.
+8. Log in with `ADMIN_USERNAME` and the generated password.
 
 ## GitHub Safety
 
 - Commit `.env.example`, but do not commit `.env`.
-- Store real passwords and `SUPERSET_SECRET_KEY` only in Coolify environment variables.
+- Generated passwords and `SUPERSET_SECRET_KEY` are stored in the Docker volume named `superset_secrets`.
 - Keep the repository private if you do not want your deployment topology public.
 - Keep `.gitattributes` committed. It prevents Windows CRLF line endings from breaking shell scripts inside Linux containers.
 
@@ -68,6 +64,7 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
 - Keep `SUPERSET_SECRET_KEY` stable after the first deploy. Changing it without following Superset's key rotation process can break encrypted metadata such as database credentials.
 - Keep `POSTGRES_PASSWORD` stable after the first deploy when possible. This deployment includes a small Postgres wrapper that syncs the existing `superset` role password to the current Coolify `POSTGRES_PASSWORD` on container startup, which recovers from common first-deploy password mismatches.
 - Superset builds its metadata DB connection from `POSTGRES_*` variables. Do not set `SQLALCHEMY_DATABASE_URI` in Coolify for this deployment; use `SUPERSET_SQLALCHEMY_DATABASE_URI` only if you intentionally manage an external metadata database.
+- Back up the `superset_secrets` volume. It contains the generated Superset secret key and database password.
 - The official Superset production guidance expects you to extend the `lean` image and install your own database drivers. This Dockerfile installs the PostgreSQL metadata driver plus Redis/Gunicorn helpers by default.
 - Back up the `postgres_data` Docker volume. Superset dashboards, charts, users, and database connection metadata live in PostgreSQL.
 - Do not expose the `db` or `redis` services publicly. This compose file intentionally uses `expose` only for Superset and no host port mappings.

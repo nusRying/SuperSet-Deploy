@@ -9,6 +9,22 @@ if [ "${1#-}" != "$1" ]; then
   set -- postgres "$@"
 fi
 
+load_file_env() {
+  var="$1"
+  file_var="${var}_FILE"
+  file_path="$(eval "printf '%s' \"\${$file_var:-}\"")"
+  value="$(eval "printf '%s' \"\${$var:-}\"")"
+
+  if [ -z "$value" ] && [ -n "$file_path" ]; then
+    echo "Waiting for $file_path..."
+    while [ ! -f "$file_path" ]; do
+      sleep 1
+    done
+    export "$var=$(cat "$file_path")"
+    unset "$file_var"
+  fi
+}
+
 sync_postgres_password() {
   db_name="${POSTGRES_DB:-$POSTGRES_USER}"
   db_port="${POSTGRES_PORT:-5432}"
@@ -68,6 +84,8 @@ stop_postgres() {
 }
 
 trap stop_postgres INT TERM
+
+load_file_env POSTGRES_PASSWORD
 
 /usr/local/bin/docker-entrypoint.sh "$@" &
 postgres_pid="$!"
