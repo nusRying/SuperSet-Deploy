@@ -46,6 +46,13 @@ superset fab create-admin \
   --email "${ADMIN_EMAIL:-admin@example.com}" \
   --password "${ADMIN_PASSWORD}" || echo "Admin user already exists, continuing."
 
+if [[ "${SUPERSET_RESET_ADMIN_PASSWORD:-true}" == "true" ]]; then
+  echo "Resetting admin user password..."
+  superset fab reset-password \
+    --username "${ADMIN_USERNAME:-admin}" \
+    --password "${ADMIN_PASSWORD}"
+fi
+
 echo "Synchronizing Superset roles and permissions..."
 superset init
 

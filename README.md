@@ -30,7 +30,8 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
    SUPERSET_PIP_PACKAGES=psycopg2-binary redis gevent openpyxl
    SUPERSET_SECRET_KEY=be2206fbc1e26b61c76281d6486170eb4939610393ee38253cc626ffe1c7fa660798129ef4703c9447f73d153b4ea343
    POSTGRES_PASSWORD=c18f29fab54bca03c6336522cb632970c86dcf531aef7ce19862e26837f777d111e48db4dcdede0015e5f73c5786edd8
-   ADMIN_PASSWORD=3e18d498f4992148f7bb92ad13b80b7918404db24b99e23923ce545de64cb9ec2485471a45f750d2a00861a857681222
+   ADMIN_PASSWORD=Kutraa1213
+   SUPERSET_RESET_ADMIN_PASSWORD=true
    POSTGRES_SYNC_PASSWORD=true
    SUPERSET_LOAD_EXAMPLES=no
    ```
@@ -86,6 +87,27 @@ If you need to keep existing Superset data, open a terminal into the `db` contai
 
 ```bash
 psql -U superset -d superset -c "ALTER USER superset WITH PASSWORD 'your-current-postgres-password';"
+```
+
+## Reset Admin Password
+
+If the initial login does not work, open a terminal into the `superset` container in Coolify and list users:
+
+```bash
+/app/docker/list-users.sh
+```
+
+Then reset the password:
+
+```bash
+ADMIN_USERNAME=admin ADMIN_PASSWORD=Kutraa1213 /app/docker/reset-admin-password.sh
+```
+
+Then log in with:
+
+```text
+Username: admin
+Password: Kutraa1213
 ```
 
 ## Local Smoke Test
