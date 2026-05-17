@@ -1,126 +1,150 @@
 # Apache Superset on Coolify
 
-This folder contains a Coolify-friendly Docker Compose deployment for Apache Superset.
+This repository contains a working Docker Compose deployment for Apache Superset on Coolify.
 
-## What It Runs
+It uses the official Superset image as a base, installs the drivers needed for this stack, and runs Superset behind Coolify's reverse proxy on container port `8088`.
 
-- `superset`: the web app on container port `8088`; it also runs idempotent migrations, admin user creation, and role sync before starting
-- `superset-worker`: Celery worker for background tasks
+## Services
+
+- `superset`: web app on port `8088`; runs migrations, creates the admin user, resets the admin password, and starts Gunicorn
+- `superset-worker`: Celery worker for background jobs
 - `superset-worker-beat`: Celery scheduler
 - `db`: PostgreSQL metadata database
-- `redis`: cache and Celery broker/result backend
+- `redis`: cache, Celery broker, and Celery result backend
 
-## GitHub To Coolify Deployment Steps
+## Default Login
 
-1. Push this folder to a GitHub repository.
-2. In Coolify, create a new resource from the GitHub repository.
-3. Select the **Docker Compose** build pack and use:
+```text
+URL: https://your-domain.com
+Username: admin
+Password: Kutraa1213
+```
+
+The default password is set in `docker-compose.yml` through `ADMIN_PASSWORD`. On every deploy, the startup script resets the `admin` user's password when `SUPERSET_RESET_ADMIN_PASSWORD=true`.
+
+## Deploy On Coolify
+
+1. Create a new Coolify resource from this GitHub repository.
+2. Select the **Docker Compose** build pack.
+3. Use this compose file path:
 
    ```text
    docker-compose.yml
    ```
 
-4. Optionally set:
-
-   ```env
-   ADMIN_USERNAME=admin
-   ADMIN_EMAIL=you@example.com
-   POSTGRES_VERSION=16-alpine
-   SUPERSET_PIP_PACKAGES=psycopg2-binary redis gevent openpyxl
-   SUPERSET_SECRET_KEY=be2206fbc1e26b61c76281d6486170eb4939610393ee38253cc626ffe1c7fa660798129ef4703c9447f73d153b4ea343
-   POSTGRES_PASSWORD=c18f29fab54bca03c6336522cb632970c86dcf531aef7ce19862e26837f777d111e48db4dcdede0015e5f73c5786edd8
-   ADMIN_PASSWORD=Kutraa1213
-   SUPERSET_RESET_ADMIN_PASSWORD=true
-   SUPERSET_LOAD_EXAMPLES=no
-   ```
-
-   `SUPERSET_SECRET_KEY`, `POSTGRES_PASSWORD`, and `ADMIN_PASSWORD` already have generated defaults in `docker-compose.yml`, so you do not need to set them in Coolify unless you want to override them.
-   Add any data warehouse drivers you need to `SUPERSET_PIP_PACKAGES`, for example `pymssql`, `trino`, `sqlalchemy-bigquery`, or `clickhouse-connect`.
-   Leave `SUPERSET_SQLALCHEMY_DATABASE_URI` unset unless you intentionally want to use an external metadata database.
-
-5. Assign your domain to the `superset` service, using container port `8088`.
-
-   Example:
+4. In the **Domains for superset** field, set your domain with the internal container port:
 
    ```text
-   https://superset.example.com:8088
+   https://your-domain.com:8088
    ```
 
-   The `:8088` tells Coolify which container port to proxy to. Visitors still use normal HTTPS at `https://superset.example.com`.
+   Visitors should open:
 
-6. Deploy.
-7. Log in with `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
+   ```text
+   https://your-domain.com
+   ```
 
-## GitHub Safety
+5. Leave domains blank for:
 
-- Commit `.env.example`, but do not commit `.env`.
-- Generated default passwords and `SUPERSET_SECRET_KEY` are committed in `docker-compose.yml` and `.env.example` for private-repo convenience.
-- Keep the repository private if you do not want your deployment topology public.
-- Keep `.gitattributes` committed. It prevents Windows CRLF line endings from breaking shell scripts inside Linux containers.
+   ```text
+   superset-worker
+   superset-worker-beat
+   ```
 
-## Important Production Notes
+6. Deploy. If Coolify was already using an older compose file, click **Reload Compose File** and redeploy with **Force rebuild**.
 
-- Keep `SUPERSET_SECRET_KEY` stable after the first deploy. Changing it without following Superset's key rotation process can break encrypted metadata such as database credentials.
-- Keep `POSTGRES_PASSWORD` stable after the first deploy. The official Postgres image only applies it when the database volume is first initialized.
-- Superset builds its metadata DB connection from `POSTGRES_*` variables. Do not set `SQLALCHEMY_DATABASE_URI` in Coolify for this deployment; use `SUPERSET_SQLALCHEMY_DATABASE_URI` only if you intentionally manage an external metadata database.
-- The official Superset production guidance expects you to extend the `lean` image and install your own database drivers. This Dockerfile installs the PostgreSQL metadata driver plus Redis/Gunicorn helpers by default.
-- Back up the `postgres_data` Docker volume. Superset dashboards, charts, users, and database connection metadata live in PostgreSQL.
-- Do not expose the `db` or `redis` services publicly. This compose file intentionally uses `expose` only for Superset and no host port mappings.
-- If you use HTTP instead of HTTPS for testing, set `SESSION_COOKIE_SECURE=false` and `PREFERRED_URL_SCHEME=http`.
-- If Coolify still shows a `secrets` service, it is deploying an older compose file. Push the latest commit, click **Reload Compose File**, then redeploy with **Force rebuild**.
+## Configuration
 
-## Fix Postgres Password Mismatch
+The compose file includes working defaults, so no Coolify environment variables are required for a basic deploy.
 
-If Superset logs show:
+Useful optional overrides:
 
-```text
-password authentication failed for user "superset"
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=Kutraa1213
+ADMIN_EMAIL=admin@example.com
+POSTGRES_VERSION=16-alpine
+POSTGRES_DB=superset
+POSTGRES_USER=superset
+POSTGRES_PASSWORD=c18f29fab54bca03c6336522cb632970c86dcf531aef7ce19862e26837f777d111e48db4dcdede0015e5f73c5786edd8
+SUPERSET_SECRET_KEY=be2206fbc1e26b61c76281d6486170eb4939610393ee38253cc626ffe1c7fa660798129ef4703c9447f73d153b4ea343
+SUPERSET_RESET_ADMIN_PASSWORD=true
+SUPERSET_LOAD_EXAMPLES=no
+SUPERSET_PIP_PACKAGES=psycopg2-binary redis gevent openpyxl
 ```
 
-then the existing `postgres_data` volume was initialized with a different password than the current `POSTGRES_PASSWORD` in Coolify. With the current compose file, redeploying should automatically sync the database password.
+Add database drivers to `SUPERSET_PIP_PACKAGES` when needed, for example:
 
-For a fresh install with no dashboards/data yet, you can also delete the app's `postgres_data` persistent volume in Coolify and redeploy. This recreates Postgres using the current `POSTGRES_PASSWORD`.
-
-If you need to keep existing Superset data, open a terminal into the `db` container and change the database user's password to match the current Coolify `POSTGRES_PASSWORD`:
-
-```bash
-psql -U superset -d superset -c "ALTER USER superset WITH PASSWORD 'your-current-postgres-password';"
+```env
+SUPERSET_PIP_PACKAGES=psycopg2-binary redis gevent openpyxl trino sqlalchemy-bigquery clickhouse-connect
 ```
+
+Do not set `SQLALCHEMY_DATABASE_URI` in Coolify for this deployment. Superset builds its metadata database URL from the `POSTGRES_*` variables. Use `SUPERSET_SQLALCHEMY_DATABASE_URI` only if you intentionally move the metadata database outside this Compose stack.
+
+## Persistent Data
+
+Coolify/Docker creates these volumes:
+
+- `postgres_data`: Superset metadata, users, dashboards, charts, and database connection records
+- `redis_data`: Redis persistence
+- `superset_home`: Superset home directory and bootstrap marker
+
+Back up `postgres_data`. That is the important application data.
+
+Keep these values stable after the first production deploy:
+
+- `SUPERSET_SECRET_KEY`
+- `POSTGRES_PASSWORD`
+
+Changing `SUPERSET_SECRET_KEY` can break encrypted metadata. Changing `POSTGRES_PASSWORD` does not update an already initialized Postgres volume.
 
 ## Reset Admin Password
 
-If the initial login does not work, open a terminal into the `superset` container in Coolify and list users:
+Open a terminal into the `superset` container in Coolify and run:
 
 ```bash
-/app/docker/list-users.sh
+superset fab reset-password --username admin --password Kutraa1213
 ```
 
-Then reset the password:
+Or use the helper script:
 
 ```bash
 ADMIN_USERNAME=admin ADMIN_PASSWORD=Kutraa1213 /app/docker/reset-admin-password.sh
 ```
 
-Then log in with:
-
-```text
-Username: admin
-Password: Kutraa1213
-```
-
-## Local Smoke Test
-
-For local testing only:
+To list users:
 
 ```bash
-cp .env.example .env
-docker compose up --build
+superset fab list-users
 ```
 
-Then open:
+or:
+
+```bash
+/app/docker/list-users.sh
+```
+
+## Postgres Password Mismatch
+
+If logs show:
 
 ```text
-http://localhost:8088
+password authentication failed for user "superset"
 ```
 
-For local testing, either add a temporary `ports` mapping to the `superset` service or access it through your Docker network tooling. Do not commit host port mappings unless you intend to bypass Coolify's proxy.
+then the existing `postgres_data` volume was initialized with a different `POSTGRES_PASSWORD`.
+
+For a fresh setup, delete the app's `postgres_data` persistent volume in Coolify and redeploy.
+
+If you need to keep existing data, open a terminal into the `db` container and change the DB user password to match the current `POSTGRES_PASSWORD`:
+
+```bash
+psql -U superset -d superset -c "ALTER USER superset WITH PASSWORD 'your-current-postgres-password';"
+```
+
+## Notes
+
+- The `db` and `redis` services are internal only and should not get domains.
+- The Superset service uses `expose: 8088`, not public host port mappings.
+- `.gitattributes` keeps shell scripts with Linux line endings when editing from Windows.
+- The warnings about CSP and Flask-Limiter in the Superset logs are not startup blockers.
