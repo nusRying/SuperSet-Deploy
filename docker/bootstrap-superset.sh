@@ -5,6 +5,36 @@ set -euo pipefail
 : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
 : "${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}"
 
+echo "Waiting for Superset metadata database..."
+python - <<'PY'
+import os
+import sys
+import time
+
+import psycopg2
+
+
+deadline = time.time() + int(os.getenv("SUPERSET_DB_WAIT_TIMEOUT", "180"))
+last_error = None
+
+while time.time() < deadline:
+    try:
+        connection = psycopg2.connect(
+            dbname=os.getenv("POSTGRES_DB", "superset"),
+            user=os.getenv("POSTGRES_USER", "superset"),
+            password=os.environ["POSTGRES_PASSWORD"],
+            host=os.getenv("POSTGRES_HOST", "db"),
+            port=int(os.getenv("POSTGRES_PORT", "5432")),
+        )
+        connection.close()
+        sys.exit(0)
+    except Exception as exc:
+        last_error = exc
+        time.sleep(2)
+
+raise SystemExit(f"Could not connect to metadata database: {last_error}")
+PY
+
 echo "Running Superset database migrations..."
 superset db upgrade
 

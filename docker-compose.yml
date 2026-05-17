@@ -6,6 +6,14 @@ x-superset-image: &superset-image
       SUPERSET_VERSION: ${SUPERSET_VERSION:-latest}
       SUPERSET_PIP_PACKAGES: ${SUPERSET_PIP_PACKAGES:-psycopg2-binary redis gevent openpyxl}
 
+x-postgres-image: &postgres-image
+  image: superset-postgres:${POSTGRES_VERSION:-16-alpine}
+  build:
+    context: .
+    dockerfile: docker/postgres/Dockerfile
+    args:
+      POSTGRES_VERSION: ${POSTGRES_VERSION:-16-alpine}
+
 x-superset-env: &superset-env
   SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
   SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:?Set SUPERSET_SECRET_KEY in Coolify. Generate it with openssl rand -base64 42.}
@@ -32,16 +40,21 @@ x-superset-env: &superset-env
 
 services:
   db:
-    image: postgres:16-alpine
+    <<: *postgres-image
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-superset}
       POSTGRES_USER: ${POSTGRES_USER:-superset}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Coolify.}
+      POSTGRES_SYNC_PASSWORD: ${POSTGRES_SYNC_PASSWORD:-true}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      test:
+        [
+          "CMD-SHELL",
+          "PGPASSWORD=\"$${POSTGRES_PASSWORD}\" psql -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -c 'select 1' >/dev/null",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10

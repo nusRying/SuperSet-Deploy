@@ -34,7 +34,9 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
    ADMIN_USERNAME=admin
    ADMIN_EMAIL=you@example.com
    SUPERSET_VERSION=latest
+   POSTGRES_VERSION=16-alpine
    SUPERSET_PIP_PACKAGES=psycopg2-binary redis gevent openpyxl
+   POSTGRES_SYNC_PASSWORD=true
    SUPERSET_LOAD_EXAMPLES=no
    ```
 
@@ -63,10 +65,29 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
 ## Important Production Notes
 
 - Keep `SUPERSET_SECRET_KEY` stable after the first deploy. Changing it without following Superset's key rotation process can break encrypted metadata such as database credentials.
+- Keep `POSTGRES_PASSWORD` stable after the first deploy when possible. This deployment includes a small Postgres wrapper that syncs the existing `superset` role password to the current Coolify `POSTGRES_PASSWORD` on container startup, which recovers from common first-deploy password mismatches.
 - The official Superset production guidance expects you to extend the `lean` image and install your own database drivers. This Dockerfile installs the PostgreSQL metadata driver plus Redis/Gunicorn helpers by default.
 - Back up the `postgres_data` Docker volume. Superset dashboards, charts, users, and database connection metadata live in PostgreSQL.
 - Do not expose the `db` or `redis` services publicly. This compose file intentionally uses `expose` only for Superset and no host port mappings.
 - If you use HTTP instead of HTTPS for testing, set `SESSION_COOKIE_SECURE=false` and `PREFERRED_URL_SCHEME=http`.
+
+## Fix Postgres Password Mismatch
+
+If Superset logs show:
+
+```text
+password authentication failed for user "superset"
+```
+
+then the existing `postgres_data` volume was initialized with a different password than the current `POSTGRES_PASSWORD` in Coolify. With the current compose file, redeploying should automatically sync the database password.
+
+For a fresh install with no dashboards/data yet, you can also delete the app's `postgres_data` persistent volume in Coolify and redeploy. This recreates Postgres using the current `POSTGRES_PASSWORD`.
+
+If you need to keep existing Superset data, open a terminal into the `db` container and change the database user's password to match the current Coolify `POSTGRES_PASSWORD`:
+
+```bash
+psql -U superset -d superset -c "ALTER USER superset WITH PASSWORD 'your-current-postgres-password';"
+```
 
 ## Local Smoke Test
 
