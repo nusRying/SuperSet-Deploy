@@ -1,18 +1,9 @@
 x-superset-image: &superset-image
-  image: superset-coolify:${SUPERSET_VERSION:-latest}
+  image: superset-coolify:latest
   build:
     context: .
     args:
-      SUPERSET_VERSION: ${SUPERSET_VERSION:-latest}
       SUPERSET_PIP_PACKAGES: ${SUPERSET_PIP_PACKAGES:-psycopg2-binary redis gevent openpyxl}
-
-x-postgres-image: &postgres-image
-  image: superset-postgres:${POSTGRES_VERSION:-16-alpine}
-  build:
-    context: .
-    dockerfile: docker/postgres/Dockerfile
-    args:
-      POSTGRES_VERSION: ${POSTGRES_VERSION:-16-alpine}
 
 x-superset-env: &superset-env
   SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
@@ -41,13 +32,12 @@ x-superset-env: &superset-env
 
 services:
   db:
-    <<: *postgres-image
+    image: postgres:${POSTGRES_VERSION:-16-alpine}
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-superset}
       POSTGRES_USER: ${POSTGRES_USER:-superset}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-c18f29fab54bca03c6336522cb632970c86dcf531aef7ce19862e26837f777d111e48db4dcdede0015e5f73c5786edd8}
-      POSTGRES_SYNC_PASSWORD: ${POSTGRES_SYNC_PASSWORD:-true}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

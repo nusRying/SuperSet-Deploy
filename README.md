@@ -25,14 +25,12 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
    ```env
    ADMIN_USERNAME=admin
    ADMIN_EMAIL=you@example.com
-   SUPERSET_VERSION=latest
    POSTGRES_VERSION=16-alpine
    SUPERSET_PIP_PACKAGES=psycopg2-binary redis gevent openpyxl
    SUPERSET_SECRET_KEY=be2206fbc1e26b61c76281d6486170eb4939610393ee38253cc626ffe1c7fa660798129ef4703c9447f73d153b4ea343
    POSTGRES_PASSWORD=c18f29fab54bca03c6336522cb632970c86dcf531aef7ce19862e26837f777d111e48db4dcdede0015e5f73c5786edd8
    ADMIN_PASSWORD=Kutraa1213
    SUPERSET_RESET_ADMIN_PASSWORD=true
-   POSTGRES_SYNC_PASSWORD=true
    SUPERSET_LOAD_EXAMPLES=no
    ```
 
@@ -63,7 +61,7 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
 ## Important Production Notes
 
 - Keep `SUPERSET_SECRET_KEY` stable after the first deploy. Changing it without following Superset's key rotation process can break encrypted metadata such as database credentials.
-- Keep `POSTGRES_PASSWORD` stable after the first deploy when possible. This deployment includes a small Postgres wrapper that syncs the existing `superset` role password to the current Coolify `POSTGRES_PASSWORD` on container startup, which recovers from common first-deploy password mismatches.
+- Keep `POSTGRES_PASSWORD` stable after the first deploy. The official Postgres image only applies it when the database volume is first initialized.
 - Superset builds its metadata DB connection from `POSTGRES_*` variables. Do not set `SQLALCHEMY_DATABASE_URI` in Coolify for this deployment; use `SUPERSET_SQLALCHEMY_DATABASE_URI` only if you intentionally manage an external metadata database.
 - The official Superset production guidance expects you to extend the `lean` image and install your own database drivers. This Dockerfile installs the PostgreSQL metadata driver plus Redis/Gunicorn helpers by default.
 - Back up the `postgres_data` Docker volume. Superset dashboards, charts, users, and database connection metadata live in PostgreSQL.

@@ -1,6 +1,4 @@
-ARG SUPERSET_VERSION=latest
-
-FROM apache/superset:${SUPERSET_VERSION}
+FROM apache/superset:latest
 
 USER root
 
