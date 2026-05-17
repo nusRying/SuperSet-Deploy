@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+/app/docker/bootstrap-superset.sh
+
 exec gunicorn \
   --bind "0.0.0.0:8088" \
   --workers "${SUPERSET_WEBSERVER_WORKERS:-2}" \

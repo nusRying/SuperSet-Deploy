@@ -58,34 +58,12 @@ services:
       timeout: 5s
       retries: 10
 
-  superset-init:
-    <<: *superset-image
-    restart: unless-stopped
-    environment:
-      <<: *superset-env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: /app/docker/init-superset.sh
-    volumes:
-      - superset_home:/app/superset_home
-    healthcheck:
-      test: ["CMD-SHELL", "test -f /tmp/superset-init-complete"]
-      interval: 10s
-      timeout: 5s
-      retries: 60
-      start_period: 30s
-
   superset:
     <<: *superset-image
     restart: unless-stopped
     environment:
       <<: *superset-env
     depends_on:
-      superset-init:
-        condition: service_healthy
       db:
         condition: service_healthy
       redis:
@@ -112,8 +90,6 @@ services:
     environment:
       <<: *superset-env
     depends_on:
-      superset-init:
-        condition: service_healthy
       db:
         condition: service_healthy
       redis:
@@ -128,8 +104,6 @@ services:
     environment:
       <<: *superset-env
     depends_on:
-      superset-init:
-        condition: service_healthy
       db:
         condition: service_healthy
       redis:

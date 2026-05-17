@@ -4,8 +4,7 @@ This folder contains a Coolify-friendly Docker Compose deployment for Apache Sup
 
 ## What It Runs
 
-- `superset`: the web app on container port `8088`
-- `superset-init`: migrations, admin user creation, and role sync; it stays running as a health gate for Coolify/Compose
+- `superset`: the web app on container port `8088`; it also runs idempotent migrations, admin user creation, and role sync before starting
 - `superset-worker`: Celery worker for background tasks
 - `superset-worker-beat`: Celery scheduler
 - `db`: PostgreSQL metadata database
